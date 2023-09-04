@@ -1,0 +1,453 @@
+---
+title: "HW02"
+output: html_document
+date: "2023-07-03"
+---
+
+## Question 1
+
+```{r}
+Sys.setlocale(locale = 'persian')
+library(data.table)
+library(ggplot2)
+library(randomForest)
+library(tidyverse)
+library(wesanderson)
+library(caret)
+library(glmnet)
+```
+
+First, we use balanced data to prevent bias in our models and improve the accuracy of our predictions. For instance, if the number of non-diabetic cases is significantly higher than diabetic cases, a model may predict all cases as non-diabetic. Additionally, since our output is binary (0 and 1), we do not need to use a dummy variable to account for differences in the distance between outputs. We will be using the diabetes_binary_5050split_health_indicators_BRFSS2015.csv dataset for our analysis.
+
+```{r}
+# Load the dataset from the file
+dataset <- read.csv("diabetes_binary_5050split_health_indicators_BRFSS2015.csv")
+
+dataset$Diabetes_binary = as.factor(dataset$Diabetes_binary)
+
+# View the first six rows of the dataset
+head(dataset)
+
+# Summarize the numeric variables in the dataset
+summary(dataset)
+
+```
+
+First, we create a histogram for each feature to determine if its distribution is balanced. For instance, the distribution for features such as MentHlth, PhysHlth, HvyAlcoholConsump, CholCheck, and HeartDiseaseorAttack is unbalanced, with some data values occurring much more frequently. These features may not be suitable for certain analyses. However, in a decision tree, these features can effectively split the prediction into two distinct categories with high purity. The remaining features have balanced distributions.
+
+```{r}
+# Plot a histogram of Age with blue color using ggplot2
+ggplot(dataset, aes(x = Age)) +
+  geom_histogram(fill = "blue")
+
+# Plot a histogram of Education with orange color using ggplot2
+ggplot(dataset, aes(x = Education)) +
+  geom_histogram(fill = "orange")
+
+# Plot a histogram of PhysHlth with green color using ggplot2
+ggplot(dataset, aes(x = PhysHlth)) +
+  geom_histogram(fill = "green")
+
+# Plot a histogram of MentHlth with red color using ggplot2
+ggplot(dataset, aes(x = MentHlth)) +
+  geom_histogram(fill = "red")
+
+# Plot a histogram of GenHlth with purple color using ggplot2
+ggplot(dataset, aes(x = GenHlth)) +
+  geom_histogram(fill = "purple")
+
+# Plot a histogram of BMI with yellow color using ggplot2
+ggplot(dataset, aes(x = BMI)) +
+  geom_histogram(fill = "yellow")
+
+# Plot a histogram of Income with pink color using ggplot2
+ggplot(dataset, aes(x = Income)) +
+  geom_histogram(fill = "pink")
+
+
+
+```
+
+```{r}
+# Plot a bar chart of Sex with blue color using ggplot2
+ggplot(dataset, aes(x = Sex)) +
+  geom_bar(fill = "blue")
+
+# Plot a bar chart of HighBP with orange color using ggplot2
+ggplot(dataset, aes(x = HighBP)) +
+  geom_bar(fill = "orange")
+
+# Plot a bar chart of HighChol with green color using ggplot2
+ggplot(dataset, aes(x = HighChol)) +
+  geom_bar(fill = "green")
+
+# Plot a bar chart of CholCheck with red color using ggplot2
+ggplot(dataset, aes(x = CholCheck)) +
+  geom_bar(fill = "red")
+
+# Plot a bar chart of HeartDiseaseorAttack with purple color using ggplot2
+ggplot(dataset, aes(x = HeartDiseaseorAttack)) +
+  geom_bar(fill = "purple")
+
+# Plot a bar chart of PhysActivity with yellow color using ggplot2
+ggplot(dataset, aes(x = PhysActivity)) +
+  geom_bar(fill = "yellow")
+
+# Plot a bar chart of HvyAlcoholConsump with pink color using ggplot2
+ggplot(dataset, aes(x = HvyAlcoholConsump)) +
+  geom_bar(fill = "pink")
+
+
+```
+
+In addition to histograms, we create other visualizations to assess the effectiveness of numeric variables in detecting diabetes.
+
+```{r}
+ggplot(dataset, aes(BMI, fill = Diabetes_binary))+
+  geom_density(alpha = .75)
+ggplot(dataset, aes(Age, fill = Diabetes_binary))+
+  geom_density(alpha = .75)
+ggplot(dataset, aes(Income, fill = Diabetes_binary))+
+  geom_density(alpha = .75)
+ggplot(dataset, aes(GenHlth, fill = Diabetes_binary))+
+  geom_density(alpha = .75)
+ggplot(dataset, aes(MentHlth, fill = Diabetes_binary))+
+  geom_density(alpha = .75)
+ggplot(dataset, aes(PhysHlth, fill = Diabetes_binary))+
+  geom_density(alpha = .75)
+ggplot(dataset, aes(Education, fill = Diabetes_binary))+
+  geom_density(alpha = .75)
+ggplot(dataset, aes(Income, fill = Diabetes_binary))+
+  geom_density(alpha = .75)
+```
+
+This code is used to analyze the relationship between diabetes status and some numerical variables in the dataset. The code uses ggplot2 to create boxplots of each numerical variable by diabetes status, using different colors and grouping to distinguish between the two categories of diabetes (Yes or No). The boxplots show the median, quartiles, and outliers of each variable for each diabetes group. The code also uses alpha to adjust the transparency of the boxplots.
+
+The boxplots can help us to compare the distribution of each numerical variable across the diabetes groups and to identify potential associations or differences.
+
+```{r}
+
+# Plot a boxplot of Age by diabetes status with different colors using ggplot2 and group
+ggplot(dataset, aes(x = Age, y = Diabetes_binary, color = Diabetes_binary, group = Diabetes_binary)) +
+  geom_boxplot(alpha = 0.75)
+
+# Plot a boxplot of BMI by diabetes status with different colors using ggplot2 and group
+ggplot(dataset, aes(x = BMI, y = Diabetes_binary, color = Diabetes_binary, group = Diabetes_binary)) +
+  geom_boxplot(alpha = 0.75)
+
+# Plot a boxplot of Income by diabetes status with different colors using ggplot2 and group
+ggplot(dataset, aes(x = Income, y = Diabetes_binary, color = Diabetes_binary, group = Diabetes_binary)) +
+  geom_boxplot(alpha = 0.75)
+
+# Plot a boxplot of Education by diabetes status with different colors using ggplot2 and group
+ggplot(dataset, aes(x = Education, y = Diabetes_binary, color = Diabetes_binary, group = Diabetes_binary)) +
+  geom_boxplot(alpha = 0.75)
+
+# Plot a boxplot of PhysHlth by diabetes status with different colors using ggplot2 and group
+ggplot(dataset, aes(x = PhysHlth, y = Diabetes_binary, color = Diabetes_binary, group = Diabetes_binary)) +
+  geom_boxplot(alpha = 0.75)
+
+# Plot a boxplot of MentHlth by diabetes status with different colors using ggplot2 and group
+ggplot(dataset, aes(x = MentHlth, y = Diabetes_binary, color = Diabetes_binary, group = Diabetes_binary)) +
+  geom_boxplot(alpha = 0.75)
+
+# Plot a boxplot of GenHlth by diabetes status with different colors using ggplot2 and group
+ggplot(dataset, aes(x = GenHlth, y = Diabetes_binary, color = Diabetes_binary, group = Diabetes_binary)) +
+  geom_boxplot(alpha = 0.75)
+```
+
+Based on these charts, the effect of Age, BMI, Income, PhysHlth and GenHlth is clear
+
+This code is used to analyze the relationship between diabetes status and some categorical variables in the dataset. The code uses mosaicplot to create mosaic plots of each categorical variable by diabetes status, using different colors (green for no diabetes and red for diabetes) to show the proportion of each category within each diabetes group. The mosaic plots also show the expected frequencies under independence as gray lines, and the deviation from independence as the residual-based shading of the tiles. The mosaic plots can help us to compare the distribution of each categorical variable across the diabetes groups and to identify potential associations or differences.
+
+```{r}
+# Plot a mosaic plot of Sex by diabetes status with different colors
+mosaicplot(Sex ~ Diabetes_binary, data = dataset, color = c("green", "red"))
+
+# Plot a mosaic plot of Smoker by diabetes status with different colors
+mosaicplot(Smoker ~ Diabetes_binary, data = dataset, color = c("green", "red"))
+
+mosaicplot(HighBP ~ Diabetes_binary, data = dataset, color = c("green", "red"))
+mosaicplot(HighChol ~ Diabetes_binary, data = dataset, color = c("green", "red"))
+mosaicplot(CholCheck ~ Diabetes_binary, data = dataset, color = c("green", "red"))
+mosaicplot(Stroke ~ Diabetes_binary, data = dataset, color = c("green", "red"))
+mosaicplot(HeartDiseaseorAttack ~ Diabetes_binary, data = dataset, color = c("green", "red"))
+
+mosaicplot(PhysActivity ~ Diabetes_binary, data = dataset, color = c("green", "red"))
+mosaicplot(HvyAlcoholConsump ~ Diabetes_binary, data = dataset, color = c("green", "red"))
+mosaicplot(AnyHealthcare ~ Diabetes_binary, data = dataset, color = c("green", "red"))
+mosaicplot(NoDocbcCost ~ Diabetes_binary, data = dataset, color = c("green", "red"))
+mosaicplot(DiffWalk ~ Diabetes_binary, data = dataset, color = c("green", "red"))
+mosaicplot(Veggies ~ Diabetes_binary, data = dataset, color = c("green", "red"))
+mosaicplot(Fruits ~ Diabetes_binary, data = dataset, color = c("green", "red"))
+```
+
+Based on these graphs, the effect of HighBP, HighChol, CholCheck, Stroke, HeartDiseaseorAttack, PhysActivit, HvyAlcoholConsump and DiffWalk is clear.
+
+**According to the above analysis, many questions have been asked in the survey, whose effect on having diabetes is clearly known. These include HighBP, HeartDiseaseorAttack, GentHlth and Age**
+
+## Question 2
+
+In this part, we apply the random forest algorithm to two different sets of variables. First, we use all the available variables as predictors and fit the random forest model to the data. Second, we rank the variables by their importance scores and select the top ten most important ones. We then fit another random forest model using only these ten variables. For both models, we plot the variable importance scores as bar charts to compare the relative importance of each predictor.
+
+```{r}
+
+# Split the data into training and testing sets (80% and 20%)
+set.seed(123) # for reproducibility
+train_index <- sample(nrow(dataset), 0.8 * nrow(dataset))
+train_data <- dataset[train_index, ]
+test_data <- dataset[-train_index, ]
+
+# Build a random forest model using all the variables
+print("Building a random forest model using all the variables...\n")
+rf_all <- randomForest(Diabetes_binary ~ ., data = train_data, importance = TRUE,do.trace = 10)
+
+# Print the model summary
+print(rf_all)
+
+# Predict on the test data
+cat("Predicting on the test data using all the variables...\n")
+pred_all <- predict(rf_all, newdata = test_data)
+
+# Calculate the accuracy
+acc_all <- mean(pred_all == test_data$Diabetes_binary)
+cat("Accuracy using all variables:", acc_all, "\n")
+
+# Select the top 10 most important variables
+top_vars <- rownames(rf_all$importance)[order(rf_all$importance[, 1], decreasing = TRUE)][1:10]
+
+# Build a random forest model using only the top 10 variables
+print("Building a random forest model using only the top 10 variables...\n")
+rf_top <- randomForest(Diabetes_binary ~ ., data = train_data[, c("Diabetes_binary", top_vars)], importance = TRUE)
+
+# Print the model summary
+print(rf_top)
+
+# Predict on the test data
+print("Predicting on the test data using only the top 10 variables...\n")
+pred_top <- predict(rf_top, newdata = test_data[, c("Diabetes_binary", top_vars)])
+
+# Calculate the accuracy
+acc_top <- mean(pred_top == test_data$Diabetes_binary)
+cat("Accuracy using top 10 variables:", acc_top, "\n")
+
+# Compare the accuracy of the two models
+cat("Difference in accuracy:", acc_top - acc_all, "\n")
+
+# Choose the final model based on accuracy and simplicity
+if (acc_top > acc_all) {
+  cat("The final model is the one using only the top 10 variables.\n")
+} else if (acc_top == acc_all) {
+  cat("The final model can be either one, but the one using only the top 10 variables is simpler.\n")
+} else {
+  cat("The final model is the one using all the variables.\n")
+}
+```
+
+```{r}
+# Plot the variable importance for the model using all the variables
+varImpPlot(rf_all, main = "Variable Importance for Model Using All Variables")
+
+# Plot the variable importance for the model using only the top 10 variables
+varImpPlot(rf_top, main = "Variable Importance for Model Using Top 10 Variables")
+```
+
+```{r}
+# Convert the matrix to a data frame
+rf_all_df <- as.data.frame(rf_all$importance)
+rf_top_df <- as.data.frame(rf_top$importance)
+
+# Plot the variable importance for the model using all the variables
+ggplot(rf_all_df, aes(x = reorder(rownames(rf_all_df), MeanDecreaseGini), y = MeanDecreaseGini)) +
+  geom_col(fill = "green") +
+  coord_flip() +
+  labs(x = "Variables", y = "Mean Decrease in Gini", title = "Variable Importance for Model Using All Variables")
+
+# Plot the variable importance for the model using only the top 10 variables
+ggplot(rf_top_df, aes(x = reorder(rownames(rf_top_df), MeanDecreaseGini), y = MeanDecreaseGini)) +
+  geom_col(fill = "red") +
+  coord_flip() +
+  labs(x = "Variables", y = "Mean Decrease in Gini", title = "Variable Importance for Model Using Top 10 Variables")
+```
+
+As we can see, the features of BMI, GenHlth, Age, HighBP, and Income have the most power to predict diabetes. You can also see the order of features in the plots.
+
+## Question 3
+
+In this section, we compared two methods for feature selection: stepwise and one standard error rule. Both methods aim to find the optimal subset of features that minimize the prediction error.
+
+### Stepwise
+
+For the stepwise method, we used the hierarchical mode, which adds or removes one feature at a time based on the significance level. We reported the standard error and the t-statistic for each feature in each step, as well as the residual sum of squares (RSS) and the p-value for the whole model. We observed that the RSS decreased sharply when adding the first few features, but then leveled off or increased slightly when adding more features. Similarly, the p-value increased after a certain point, indicating that some features were not significant and could be dropped.
+
+```{r}
+# load the dataset
+dataset <- read.csv("https://d-learn.ir/diabetes_binary_5050split_health_indicators_brfss2015/")
+
+# define the full model with all predictors
+full_model <- lm(Diabetes_binary ~ ., data = dataset)
+
+# perform stepwise regression using AIC as the criterion
+stepwise_model <- step(full_model, direction = "both", trace = TRUE)
+
+# view the final model
+summary(stepwise_model)
+
+# calculate the absolute RSS for each predictor in the final model
+rss <- vector()
+for (i in 2:length(stepwise_model$coefficients)) {
+  # fit a reduced model without the ith predictor
+  reduced_formula <- as.formula(paste("Diabetes_binary ~ ", paste(names(stepwise_model$coefficients)[-c(1, i)], collapse = " + ")))
+  reduced_model <- lm(reduced_formula, data = dataset)
+  
+  # calculate the absolute RSS difference between the full and reduced models
+  rss[i - 1] <- abs(sum((stepwise_model$residuals)^2) - sum((reduced_model$residuals)^2))
+}
+
+# create a data frame with the predictor names, RSS values and p-values
+rss_table <- data.frame(Predictor = names(stepwise_model$coefficients)[-1], RSS = rss, Pvalue = summary(stepwise_model)$coefficients[-1, 4])
+
+# arrange the predictors based on RSS in descending order
+rss_table <- rss_table[order(-rss_table$RSS), ]
+
+
+# arrange the predictors based on p-value in ascending order
+pvalue_table <- rss_table[order(rss_table$Pvalue), ]
+
+# print the table of predictors and p-value
+print(pvalue_table)
+
+
+```
+
+```{r}
+names(stepwise_model$coefficients)
+```
+
+### One standard error rule
+
+For the one standard error rule, we used cross-validation to estimate the prediction error for different subsets of features. Then, we chose the simplest model within one standard error of the minimum MSE. This method resulted in a smaller subset of features than the stepwise method, but with a comparable prediction performance.
+
+```{r}
+# Split the dataset into training and testing sets
+set.seed(123)
+train_index <- createDataPartition(dataset$Diabetes, p = 0.8, list = FALSE)
+train_set <- dataset[train_index, ]
+test_set <- dataset[-train_index, ]
+
+# Define the control parameters for feature selection
+control <- trainControl(method = "cv", number = 10, selectionFunction = "oneSE")
+
+# Train a logistic regression model with feature selection
+model <- train(Diabetes_binary ~ ., data = train_set, method = "glm", trControl = control)
+```
+
+```{r}
+# Print the variable importance scores
+print(varImp(model))
+
+# Print the names of the selected features
+print(names(train_set)[model$finalModel$selectedVars])
+
+```
+
+## Question 4
+
+The features we extracted based on one standard error rule include "GenHlth", "BMI", "HighBP", "Age", "HighChol", "CholCheck", "HvyAlcoholConsump", "Incom". Therefore, we create a new dataset with these 8 features and continue the steps with this subset of features.
+
+```{r}
+# Make a new dataset with the specified features
+new_dataset <- dataset[, c("Diabetes_binary","GenHlth", "BMI", "HighBP", "Age", "HighChol","CholCheck","HvyAlcoholConsump","Income")]
+new_dataset$Diabetes_binary = as.factor(new_dataset$Diabetes_binary)
+# Print the first 10 rows of the new dataset
+print(head(new_dataset, 10))
+
+```
+In this section, we aim to find the best predictive model for the binary outcome variable of interest, using the 8 features that we selected in the previous section. We consider six different models: “Decision Tree”, “Logistic Regression”, “KNN”, “LDA”, “QDA”, and “Neural Network”. These models vary in their complexity, flexibility, and interpretability, and we expect them to have different performance on the data.
+
+To compare the models, we use a validation set that is separate from the training and test sets. We fit each model on the training set, and then evaluate its accuracy on the validation set. 
+
+```{r}
+# Split the new_dataset into training, validation and testing sets
+set.seed(123)
+train_index <- createDataPartition(new_dataset$Diabetes_binary, p = 0.6, list = FALSE)
+train_set <- new_dataset[train_index, ]
+temp_set <- new_dataset[-train_index, ]
+valid_index <- createDataPartition(temp_set$Diabetes_binary, p = 0.5, list = FALSE)
+valid_set <- temp_set[valid_index, ]
+test_set <- temp_set[-valid_index, ]
+
+# Define the control parameters for model training and evaluation
+control <- trainControl(method = "none", savePredictions = "final")
+
+# Create an empty vector to store the training time for each model
+train_time <- vector()
+
+# Define a list of model names and methods
+model_names <- c("Decision_Tree","Logistic_Regression", "KNN", "LDA", "QDA") 
+model_methods <- c("rpart", "glm", "knn", "lda", "qda") 
+
+# Define a list of model names and methods
+#model_names <- c("Decision_Tree","Logistic_Regression", "KNN", "LDA", "QDA", "Neural_Network")
+#model_methods <- c("rpart", "glm", "knn", "lda", "qda", "nnet")
+
+# Loop over the model methods and train them on the training set with trace
+for (i in 1:length(model_methods)) {
+  print(model_names[i])
+  start_time <- Sys.time()
+  model <- train(Diabetes_binary ~ ., data = train_set, method = model_methods[i])
+  end_time <- Sys.time()
+  train_time[i] <- end_time - start_time
+  # Assign the model to a variable with its name
+  assign(model_names[i], model)
+}
+
+# Define a function to evaluate a model on a given dataset using accuracy as the metric
+evaluate_model <- function(model, data) {
+  preds <- predict(model, newdata = data)
+  cm <- confusionMatrix(preds, data$Diabetes_binary)
+  return(cm$overall["Accuracy"])
+}
+
+# Create a list of models to compare
+#models <- list(Decision_Tree,Logistic_Regression, KNN, LDA, QDA, Neural_Network)
+models <- list(Decision_Tree,Logistic_Regression, KNN, LDA, QDA)
+
+# Create an empty vector to store the validation accuracy for each model
+valid_acc <- vector()
+
+# Loop over the models and evaluate them on the validation set
+for (i in 1:length(models)) {
+  valid_acc[i] <- evaluate_model(models[[i]], valid_set)
+}
+
+# Print the validation accuracy for each model
+print(valid_acc)
+
+# Find the index of the best model based on the validation accuracy
+best_index <- which.max(valid_acc)
+
+# Print the name of the best model
+print("Best model is ")
+print(models[[best_index]]$method)
+
+# Evaluate the best model on the test set using accuracy as the metric
+test_acc <- evaluate_model(models[[best_index]], test_set)
+
+# Print the test accuracy of the best model
+print("Test Accuracy is ")
+print(test_acc)
+
+# Create a data frame with the model names and training times
+time_table <- data.frame(Model = model_names, Time = train_time)
+valACC <- data.frame(Model = model_names, Validation_accuracy =valid_acc)
+
+# Print the table of time for each model
+print(time_table)
+# Print the table of time for each model
+print(valACC)
+
+```
+## Question 5
+Since all the calculations are done on the application side, our model should perform fast when it wants to predict. Parametric models can predict diabetes from the features (the same questions that are asked to the user) by simply performing a mathematical operation when the training of the model is finished, but the models that are not parametric have to perform a complex operation. For example, in logistic regression, we have parameters and the output value can be obtained by applying a sigmoid function. But in KNN, for example, the distance of the point to all other points must be calculated, which may be a large amount, so this method takes a long time to answer. In the previous section where we measured the times, this issue is also clear. Also, the decision tree is a good model that can be interpreted and understood for this part because it is both parametric and divides each of our features into a region. But we should also consider the accuracy and precision of the model, which indicates how well it can classify the data. We can use different metrics such as confusion matrix, F1-score, ROC curve, etc. to evaluate the performance of the model. We should also avoid overfitting or underfitting the model, which means that it either memorizes the training data or fails to capture the patterns in the data. We can use techniques such as cross-validation, regularization, pruning, etc. to prevent these problems and improve the generalization of the model.
+Note that the NN network is also parametric and it is a suitable option for testing, but it takes a long time to train. Its code is available in the previous section, but it has been commented.
